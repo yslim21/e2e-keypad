@@ -2,8 +2,7 @@ package bob.e2e.bob.e2e.data.repository
 
 import bob.e2e.bob.e2e.domain.model.Keypad
 
-interface KepadRepository {
-
+interface KeypadRepository {
     fun insert(keypad: Keypad)
 
     fun selectBy(id: String): Keypad
