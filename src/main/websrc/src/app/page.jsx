@@ -10,7 +10,7 @@ export default function Page() {
 
   useEffect(() => {}, []);
 
-  if (states.keypad === null) {
+  if (!states.keypad || states.keypad.length === 0) {
     return (
       <div>
         ...isLoading...

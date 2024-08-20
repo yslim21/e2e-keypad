@@ -1,23 +1,29 @@
 import { useState, useEffect } from 'react';
 import axios from "axios";
 import '../style/keypad.css';
+import JSEncrypt from 'jsencrypt';
 
 export default function useSecureKeypad() {
   const [keypad, setKeypad] = useState([]);
   const [userInput, setUserInput] = useState(new Array(6).fill(null));
+  const [publicKey, setPublicKey] = useState('');
+  const [keypadId, setKeypadId] = useState(''); // id 상태 추가
 
   useEffect(() => {
     // 컴포넌트가 처음 마운트될 때만 키패드를 가져옴
     getSecureKeypad();
+    fetchPublicKey();
   }, []); // 빈 배열을 의존성으로 설정하여, 이 효과가 한 번만 실행되도록 보장
 
   const getSecureKeypad = async () => {
     try {
       const response = await axios.get('/api/keypad');
-      const { image, hashList } = response.data;
+      const { image, hashList, id } = response.data; // id를 함께 받음
 
       const keypadRows = createKeypadLayout(image, hashList);
       setKeypad(keypadRows);
+      setKeypadId(id); // id 상태 설정
+      //console.log(id)
     } catch (error) {
       console.error('Failed to fetch keypad:', error);
     }
@@ -47,6 +53,22 @@ export default function useSecureKeypad() {
     return rows;
   };
 
+  const fetchPublicKey = async () => {
+    try {
+      const response = await fetch('/public_key.pem'); // 공개키 파일 경로
+      const key = await response.text();
+      setPublicKey(key);
+    } catch (error) {
+      console.error('Failed to fetch public key:', error);
+    }
+  };
+
+  const encryptData = (data) => {
+    const encrypt = new JSEncrypt();
+    encrypt.setPublicKey(publicKey); // 공개키 설정
+    return encrypt.encrypt(data); // 데이터 암호화
+  };
+
   const onKeyPressed = (row, col) => {
     const updatedUserInput = [...userInput];
     const emptyIndex = updatedUserInput.findIndex(val => val === null);
@@ -56,8 +78,22 @@ export default function useSecureKeypad() {
     }
 
     if (emptyIndex === 5) {
-      setTimeout(() => {
-        alert(`User Input: ${updatedUserInput.join(' ')}`);
+      setTimeout(async () => {
+        //alert(`User Input: ${updatedUserInput.join(' ')}`);
+
+        const combinedHash = updatedUserInput.join('');
+        const encryptedData = encryptData(combinedHash);
+
+        //console.log(encryptedData);
+
+        const response = await axios.post('http://localhost:8080/api/receiveEncryptedData', {
+          id: keypadId, // id를 함께 보냄
+          encryptedData: encryptedData
+        });
+
+        //console.log("Response from server:", response.data);
+        alert(response.data);
+
         setUserInput(new Array(6).fill(null));
         getSecureKeypad();
       }, 0);
